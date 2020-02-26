@@ -29,6 +29,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.objCodeMgr = creonAPI.CpCodeMgr()
 
         self.rcv_data = dict()  # RQ후 받아온 데이터 저장 멤버
+        self.supply_data = dict()  # RQ후 받아온 수급데이터 저장 멤버
         self.update_status_msg = ''  # status bar 에 출력할 메세지 저장 멤버
         self.return_status_msg = ''  # status bar 에 출력할 메세지 저장 멤버
 
@@ -216,6 +217,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif self.radioButton_2.isChecked(): # 일봉
             tick_unit = '일봉'
             count = 10000  # 10000개면 현재부터 1980년 까지의 데이터에 해당함. 충분.
+            #count = 10
             tick_range = 1
         elif self.radioButton_4.isChecked(): # 주봉
             tick_unit = '주봉'
@@ -235,8 +237,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
                 from_date = 0
                 if code[0] in self.db_code_df['종목코드'].tolist():
-                    cursor.execute("SELECT date FROM {} ORDER BY date DESC LIMIT 1".format(code[0]))
-                    from_date = cursor.fetchall()[0][0]
+                    cursor.execute("SELECT date,close FROM {} ORDER BY date DESC LIMIT 1".format(code[0]))
+                    last_elem = cursor.fetchall()
+                    from_date = last_elem[0][0]
+                    last_price = last_elem[0][1]
 
                 if tick_unit == '일봉':  # 일봉 데이터 받기
                     if self.objStockChart.RequestDWM(code[0], ord('D'), count, self, from_date) == False:
@@ -251,11 +255,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     if self.objStockChart.RequestDWM(code[0], ord('M'), count, self, from_date) == False:
                         continue
 
-                df = pd.DataFrame(self.rcv_data, columns=['open', 'high', 'low', 'close', 'volume'],
+                if tick_unit == '일봉':
+                    df = pd.DataFrame(self.rcv_data, columns=['open', 'high', 'low', 'close', 'volume', 'value', 'num_listed','market_cap', 'foreign_rate', 'inst_netbuy'],
                                   index=self.rcv_data['date'])
+                    df2 = pd.DataFrame(self.supply_data, columns=['person', 'foreign', 'inst_total', 'finance', 'insurance', 'toosin', 'bank',
+                                                              'gita_finance', 'pension', 'gita_inst', 'gita_foreign', 'samo',
+                                                              'nation'],
+                                  index=self.supply_data['date'])
+                    df = df.join(df2)
+                else:
+                    df = pd.DataFrame(self.rcv_data, columns=['open', 'high', 'low', 'close', 'volume'],
+                                  index=self.rcv_data['date'])
+
 
                 # 기존 DB와 겹치는 부분 제거
                 if from_date != 0:
+                    new_price = df.at[from_date,'close']
+                    if new_price != last_price:
+                        print('\n'+code[0],code[1],'수정주가 이벤트 발생')
+                        df_old = pd.read_sql_query("SELECT * FROM "+code[0]+";", con).set_index('date')
+                        df_old[['open','high','low','close']]=df_old[['open','high','low','close']]/last_price*new_price
+                        df_old.to_sql(code[0], con, if_exists='replace', index_label='date')
                     df = df.loc[:from_date]
                     df = df.iloc[:-1]
 
@@ -265,6 +285,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
                 # 메모리 overflow 방지
                 del df
+                if tick_unit == '일봉':
+                    del df2
                 gc.collect()
 
         self.update_status_msg = ''

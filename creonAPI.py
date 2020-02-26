@@ -27,6 +27,7 @@ def check_PLUS_status(original_func):
 class CpStockChart:
     def __init__(self):
         self.objStockChart = win32com.client.Dispatch("CpSysDib.StockChart")
+        self.objSvr7254 = win32com.client.Dispatch("CpSysDib.CpSvr7254")
 
     def _check_rq_status(self):
         """
@@ -35,6 +36,20 @@ class CpStockChart:
         """
         rqStatus = self.objStockChart.GetDibStatus()
         rqRet = self.objStockChart.GetDibMsg1()
+        if rqStatus == 0:
+            pass
+            # print("통신상태 정상[{}]{}".format(rqStatus, rqRet), end=' ')
+        else:
+            print("통신상태 오류[{}]{} 종료합니다..".format(rqStatus, rqRet))
+            exit()
+
+    def _check_rq_status2(self):
+        """
+        self.objStockChart.BlockRequest() 로 요청한 후 이 메소드로 통신상태 검사해야함
+        :return: None
+        """
+        rqStatus = self.objSvr7254.GetDibStatus()
+        rqRet = self.objSvr7254.GetDibMsg1()
         if rqStatus == 0:
             pass
             # print("통신상태 정상[{}]{}".format(rqStatus, rqRet), end=' ')
@@ -52,15 +67,22 @@ class CpStockChart:
         :param caller: 이 메소드 호출한 인스턴스. 결과 데이터를 caller의 멤버로 전달하기 위함
         :return: None
         """
+        # cybosplushelp StockChart 참조
         self.objStockChart.SetInputValue(0, code)  # 종목코드
         self.objStockChart.SetInputValue(1, ord('2'))  # 개수로 받기
         self.objStockChart.SetInputValue(4, count)  # 최근 count개
-        self.objStockChart.SetInputValue(5, [0, 2, 3, 4, 5, 8])  # 요청항목 - 날짜,시가,고가,저가,종가,거래량
+        if dwm == ord('D'):
+            self.objStockChart.SetInputValue(5, [0, 2, 3, 4, 5, 8, 9, 12, 13, 17, 20])  # 요청항목 - 날짜,시가,고가,저가,종가,거래량,거래대금,상장주식수,시가총액,외국인보유비율,기관순매수
+        else:
+            self.objStockChart.SetInputValue(5, [0, 2, 3, 4, 5, 8])  # 요청항목 - 날짜,시가,고가,저가,종가,거래량
         self.objStockChart.SetInputValue(6, dwm)  # '차트 주기 - 일/주/월
         self.objStockChart.SetInputValue(9, ord('1'))  # 수정주가 사용
 
         # 요청한 항목들을 튜플로 만들어 사용
-        rq_column = ('date', 'open', 'high', 'low', 'close', 'volume')
+        if dwm == ord('D'):
+            rq_column = ('date', 'open', 'high', 'low', 'close', 'volume', 'value', 'num_listed','market_cap', 'foreign_rate', 'inst_netbuy')
+        else:
+            rq_column = ('date', 'open', 'high', 'low', 'close', 'volume')
 
         rcv_data = {}
         for col in rq_column:
@@ -96,6 +118,56 @@ class CpStockChart:
                 break
             if rcv_oldest_date < from_date:
                 break
+
+        if dwm == ord('D'):
+
+            self.objSvr7254.SetInputValue(0, code)  # 종목코드
+            self.objSvr7254.SetInputValue(1, 6)  # 일별
+            self.objSvr7254.SetInputValue(4, ord('0'))  # 순매수
+            self.objSvr7254.SetInputValue(5, 0)  # 전체 주체
+
+            rq_column = (
+            'date','person', 'foreign', 'inst_total', 'finance', 'insurance', 'toosin', 'bank',
+            'gita_finance', 'pension', 'gita_inst', 'gita_foreign', 'samo',
+            'nation')
+            #개인,외국인,기관계(기존 기관계 + 국가지자체)
+            #금융투자,보험,투신,은행,기타금융,연기금,기타법인,기타외인,사모펀드,국가지자체
+
+            supply_data = {}
+            for col in rq_column:
+                supply_data[col] = []
+
+            rcv_count = 0
+            while count > rcv_count:
+                self.objSvr7254.BlockRequest()  # 요청! 후 응답 대기
+                self._check_rq_status2()  # 통신상태 검사
+                time.sleep(0.25)  # 시간당 RQ 제한으로 인해 장애가 발생하지 않도록 딜레이를 줌
+
+                rcv_batch_len = self.objSvr7254.GetHeaderValue(1)  # 받아온 데이터 개수
+                rcv_batch_len = min(rcv_batch_len, count - rcv_count)  # 정확히 count 개수만큼 받기 위함
+                for i in range(rcv_batch_len):
+                    for col_idx, col in enumerate(rq_column):
+                        supply_data[col].append(self.objSvr7254.GetDataValue(col_idx, i))
+
+                if len(supply_data['date']) == 0:  # 데이터가 없는 경우
+                    print(code, '데이터 없음')
+                    return False
+
+                # rcv_batch_len 만큼 받은 데이터의 가장 오래된 date
+                rcv_oldest_date = supply_data['date'][-1]
+
+                rcv_count += rcv_batch_len
+                caller.return_status_msg = '{} / {}'.format(rcv_count, count)
+
+                # 서버가 가진 모든 데이터를 요청한 경우 break.
+                # self.objStockChart.Continue 는 개수로 요청한 경우
+                # count만큼 이미 다 받았더라도 계속 1의 값을 가지고 있어서
+                # while 조건문에서 count > rcv_count를 체크해줘야 함.
+                if not self.objSvr7254.Continue:
+                    break
+                if rcv_oldest_date < from_date:
+                    break
+            caller.supply_data = supply_data  # 받은 데이터를 caller의 멤버에 저장
 
         caller.rcv_data = rcv_data  # 받은 데이터를 caller의 멤버에 저장
         return True
