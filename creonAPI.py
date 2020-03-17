@@ -69,6 +69,7 @@ class CpStockChart:
         """
         # cybosplushelp StockChart 참조
         self.objStockChart.SetInputValue(0, code)  # 종목코드
+        #print(code)
         self.objStockChart.SetInputValue(1, ord('2'))  # 개수로 받기
         self.objStockChart.SetInputValue(4, count)  # 최근 count개
         if dwm == ord('D'):
@@ -119,7 +120,7 @@ class CpStockChart:
             if rcv_oldest_date < from_date:
                 break
 
-        if dwm == ord('D'):
+        if dwm == ord('D') and not (code =='U001' or code =='U201'):
 
             self.objSvr7254.SetInputValue(0, code)  # 종목코드
             self.objSvr7254.SetInputValue(1, 6)  # 일별

@@ -72,7 +72,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def connect_code_list_view(self):
         # 서버 종목 정보 가져와서 dataframe으로 저장
-        sv_code_list = self.objCodeMgr.get_code_list(1) + self.objCodeMgr.get_code_list(2)
+        sv_code_list = self.objCodeMgr.get_code_list(1) + self.objCodeMgr.get_code_list(2) + ('U001','U201')
         sv_name_list = list(map(self.objCodeMgr.get_code_name, sv_code_list))
         self.sv_code_df = pd.DataFrame({'종목코드': sv_code_list,'종목명': sv_name_list},
                                        columns=('종목코드', '종목명'))
@@ -186,9 +186,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def load_code_list(self):
         code_list_path = self.lineEdit_8.text()
         code_list = pd.read_csv(code_list_path, dtype=str).values.ravel()
+        print(code_list)
         self._filter_code_list_view(code_list[0], reset=True)
         for code in code_list[1:]:
             self._filter_code_list_view(code, reset=False)
+        print(code_list)
 
     @decorators.return_status_msg_setter
     def update_price_db(self, filtered=False):
@@ -208,7 +210,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if self.radioButton.isChecked(): # 1분봉
             tick_unit = '분봉'
-            count = 200000  # 서버 데이터 최대 reach 약 18.5만 이므로 (18/02/25 기준)
+            count = 500000  # 서버 데이터 최대 reach 약 18.5만 이므로 (18/02/25 기준)
             tick_range = 1
         elif self.radioButton_3.isChecked(): # 5분봉
             tick_unit = '분봉'
@@ -258,11 +260,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 if tick_unit == '일봉':
                     df = pd.DataFrame(self.rcv_data, columns=['open', 'high', 'low', 'close', 'volume', 'value', 'num_listed','market_cap', 'foreign_rate', 'inst_netbuy'],
                                   index=self.rcv_data['date'])
-                    df2 = pd.DataFrame(self.supply_data, columns=['person', 'foreign', 'inst_total', 'finance', 'insurance', 'toosin', 'bank',
-                                                              'gita_finance', 'pension', 'gita_inst', 'gita_foreign', 'samo',
-                                                              'nation'],
-                                  index=self.supply_data['date'])
-                    df = df.join(df2)
+                    if not (code[0] =='U001' or code[0] =='U201'):
+                        df2 = pd.DataFrame(self.supply_data, columns=['person', 'foreign', 'inst_total', 'finance', 'insurance', 'toosin', 'bank',
+                                                                  'gita_finance', 'pension', 'gita_inst', 'gita_foreign', 'samo',
+                                                                  'nation'],
+                                      index=self.supply_data['date'])
+                        df = df.join(df2)
                 else:
                     df = pd.DataFrame(self.rcv_data, columns=['open', 'high', 'low', 'close', 'volume'],
                                   index=self.rcv_data['date'])
@@ -285,7 +288,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
                 # 메모리 overflow 방지
                 del df
-                if tick_unit == '일봉':
+                if tick_unit == '일봉' and not (code[0] =='U001' or code[0] =='U201'):
                     del df2
                 gc.collect()
 
