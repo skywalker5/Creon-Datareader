@@ -186,11 +186,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def load_code_list(self):
         code_list_path = self.lineEdit_8.text()
         code_list = pd.read_csv(code_list_path, dtype=str).values.ravel()
-        print(code_list)
         self._filter_code_list_view(code_list[0], reset=True)
         for code in code_list[1:]:
             self._filter_code_list_view(code, reset=False)
-        print(code_list)
 
     @decorators.return_status_msg_setter
     def update_price_db(self, filtered=False):
@@ -203,7 +201,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if not is_market_open():
             latest_date = available_latest_date()
-            print(latest_date)
             # 이미 DB 데이터가 최신인 종목들은 가져올 목록에서 제외한다
             already_up_to_date_codes = db_code_df.loc[db_code_df['갱신날짜']==latest_date]['종목코드'].values
             fetch_code_df = fetch_code_df.loc[fetch_code_df['종목코드'].apply(lambda x: x not in already_up_to_date_codes)]
@@ -214,7 +211,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             tick_range = 1
         elif self.radioButton_3.isChecked(): # 5분봉
             tick_unit = '분봉'
-            count = 100000
+            count = 30000
             tick_range = 5
         elif self.radioButton_2.isChecked(): # 일봉
             tick_unit = '일봉'
@@ -228,7 +225,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             tick_unit = '월봉'
             count = 500
 
-
         with sqlite3.connect(self.db_path) as con:
             cursor = con.cursor()
             tqdm_range = tqdm.trange(len(fetch_code_df), ncols=100)
@@ -238,6 +234,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 tqdm_range.set_description(preformat_cjk(self.update_status_msg, 25))
 
                 from_date = 0
+                print(code[0])
                 if code[0] in self.db_code_df['종목코드'].tolist():
                     cursor.execute("SELECT date,close FROM {} ORDER BY date DESC LIMIT 1".format(code[0]))
                     last_elem = cursor.fetchall()
@@ -267,7 +264,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                                       index=self.supply_data['date'])
                         df = df.join(df2)
                 else:
-                    df = pd.DataFrame(self.rcv_data, columns=['open', 'high', 'low', 'close', 'volume'],
+                	#df = pd.DataFrame(self.rcv_data, columns=['value'],
+                    #              index=self.rcv_data['date'])
+                    df = pd.DataFrame(self.rcv_data, columns=['open', 'high', 'low', 'close', 'volume','value'],
                                   index=self.rcv_data['date'])
 
 

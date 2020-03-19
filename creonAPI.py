@@ -187,13 +187,15 @@ class CpStockChart:
         self.objStockChart.SetInputValue(0, code)  # 종목코드
         self.objStockChart.SetInputValue(1, ord('2'))  # 개수로 받기
         self.objStockChart.SetInputValue(4, count)  # 조회 개수
-        self.objStockChart.SetInputValue(5, [0, 1, 2, 3, 4, 5, 8])  # 요청항목 - 날짜, 시간,시가,고가,저가,종가,거래량
+        self.objStockChart.SetInputValue(5, [0, 1, 2, 3, 4, 5, 8, 9])  # 요청항목 - 날짜, 시간,시가,고가,저가,종가,거래량
+        #self.objStockChart.SetInputValue(5, [0, 1, 9])  # 요청항목 - 날짜, 시간,시가,고가,저가,종가,거래량
         self.objStockChart.SetInputValue(6, dwm)  # '차트 주기 - 분/틱
         self.objStockChart.SetInputValue(7, tick_range)  # 분틱차트 주기
-        self.objStockChart.SetInputValue(9, ord('1'))  # 수정주가 사용
+        self.objStockChart.SetInputValue(9, ord('0'))  # 수정주가 사용
 
         # 요청한 항목들을 튜플로 만들어 사용
-        rq_column = ('date', 'time', 'open', 'high', 'low', 'close', 'volume')
+        rq_column = ('date', 'time', 'open', 'high', 'low', 'close', 'volume','value')
+        #rq_column = ('date', 'time', 'value')
 
         rcv_data = {}
         for col in rq_column:
