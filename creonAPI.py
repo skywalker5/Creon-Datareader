@@ -1,10 +1,7 @@
 # coding=utf-8
 import win32com.client
 import time
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from creon_datareader_v1_0 import MainWindow
 
 g_objCpStatus = win32com.client.Dispatch('CpUtil.CpCybos')
 
@@ -59,7 +56,7 @@ class CpStockChart:
 
     # 차트 요청 - 최근일 부터 개수 기준
     @check_PLUS_status
-    def RequestDWM(self, code, dwm, count, caller: 'MainWindow', from_date=0):
+    def RequestDWM(self, code, dwm, count, caller: 'MainWindow'):
         """
         :param code: 종목코드
         :param dwm: 'D':일봉, 'W':주봉, 'M':월봉
@@ -72,18 +69,18 @@ class CpStockChart:
         #print(code)
         self.objStockChart.SetInputValue(1, ord('2'))  # 개수로 받기
         self.objStockChart.SetInputValue(4, count)  # 최근 count개
-        if dwm == ord('D'):
-            self.objStockChart.SetInputValue(5, [0, 2, 3, 4, 5, 8, 9, 12, 13, 17, 20])  # 요청항목 - 날짜,시가,고가,저가,종가,거래량,거래대금,상장주식수,시가총액,외국인보유비율,기관순매수
-        else:
+        if (code =='U001' or code =='U201'):
             self.objStockChart.SetInputValue(5, [0, 2, 3, 4, 5, 8])  # 요청항목 - 날짜,시가,고가,저가,종가,거래량
+        else:
+            self.objStockChart.SetInputValue(5, [0, 2, 3, 4, 5, 8, 9, 12, 13, 17, 19])  # 요청항목 - 날짜,시가,고가,저가,종가,거래량,거래대금,상장주식수,시가총액,외국인보유비율,수정주가일자,수정주가비율,주식회전율
         self.objStockChart.SetInputValue(6, dwm)  # '차트 주기 - 일/주/월
-        self.objStockChart.SetInputValue(9, ord('1'))  # 수정주가 사용
+        self.objStockChart.SetInputValue(9, ord('0'))  # 무수정주가 사용
 
         # 요청한 항목들을 튜플로 만들어 사용
-        if dwm == ord('D'):
-            rq_column = ('date', 'open', 'high', 'low', 'close', 'volume', 'value', 'num_listed','market_cap', 'foreign_rate', 'inst_netbuy')
+        if (code =='U001' or code =='U201'):
+            rq_column = ('logDate', 'priceOpen', 'priceHigh', 'priceLow', 'priceClose', 'volume')
         else:
-            rq_column = ('date', 'open', 'high', 'low', 'close', 'volume')
+            rq_column = ('logDate', 'priceOpen', 'priceHigh', 'priceLow', 'priceClose', 'volume', 'amount', 'numListed','marketCap', 'foreignRate','adjRate')
 
         rcv_data = {}
         for col in rq_column:
@@ -101,12 +98,12 @@ class CpStockChart:
                 for col_idx, col in enumerate(rq_column):
                     rcv_data[col].append(self.objStockChart.GetDataValue(col_idx, i))
 
-            if len(rcv_data['date']) == 0:  # 데이터가 없는 경우
+            if len(rcv_data['logDate']) == 0:  # 데이터가 없는 경우
                 print(code, '데이터 없음')
                 return False
 
             # rcv_batch_len 만큼 받은 데이터의 가장 오래된 date
-            rcv_oldest_date = rcv_data['date'][-1]
+            rcv_oldest_date = rcv_data['logDate'][-1]
 
             rcv_count += rcv_batch_len
             caller.return_status_msg = '{} / {}'.format(rcv_count, count)
@@ -117,8 +114,6 @@ class CpStockChart:
             # while 조건문에서 count > rcv_count를 체크해줘야 함.
             if not self.objStockChart.Continue:
                 break
-            if rcv_oldest_date < from_date:
-                break
 
         if dwm == ord('D') and not (code =='U001' or code =='U201'):
 
@@ -128,9 +123,9 @@ class CpStockChart:
             self.objSvr7254.SetInputValue(5, 0)  # 전체 주체
 
             rq_column = (
-            'date','person', 'foreign', 'inst_total', 'finance', 'insurance', 'toosin', 'bank',
-            'gita_finance', 'pension', 'gita_inst', 'gita_foreign', 'samo',
-            'nation')
+            'logDate','personNetbuy', 'foreignNetbuy', 'instNetbuy', 'financeNetbuy', 'insuranceNetbuy', 'toosinNetbuy', 'bankNetbuy',
+            'gitaFinanceNetbuy', 'pensionNetbuy', 'gitaInstNetbuy', 'gitaForeignNetbuy', 'samoNetbuy',
+            'nationNetbuy')
             #개인,외국인,기관계(기존 기관계 + 국가지자체)
             #금융투자,보험,투신,은행,기타금융,연기금,기타법인,기타외인,사모펀드,국가지자체
 
@@ -150,12 +145,12 @@ class CpStockChart:
                     for col_idx, col in enumerate(rq_column):
                         supply_data[col].append(self.objSvr7254.GetDataValue(col_idx, i))
 
-                if len(supply_data['date']) == 0:  # 데이터가 없는 경우
+                if len(supply_data['logDate']) == 0:  # 데이터가 없는 경우
                     print(code, '데이터 없음')
                     return False
 
                 # rcv_batch_len 만큼 받은 데이터의 가장 오래된 date
-                rcv_oldest_date = supply_data['date'][-1]
+                rcv_oldest_date = supply_data['logDate'][-1]
 
                 rcv_count += rcv_batch_len
                 caller.return_status_msg = '{} / {}'.format(rcv_count, count)
@@ -166,8 +161,6 @@ class CpStockChart:
                 # while 조건문에서 count > rcv_count를 체크해줘야 함.
                 if not self.objSvr7254.Continue:
                     break
-                if rcv_oldest_date < from_date:
-                    break
             caller.supply_data = supply_data  # 받은 데이터를 caller의 멤버에 저장
 
         caller.rcv_data = rcv_data  # 받은 데이터를 caller의 멤버에 저장
@@ -175,7 +168,7 @@ class CpStockChart:
 
     # 차트 요청 - 분간, 틱 차트
     @check_PLUS_status
-    def RequestMT(self, code, dwm, tick_range, count, caller: 'MainWindow', from_date=0):
+    def RequestMT(self, code, dwm, tick_range, count, caller: 'MainWindow'):
         """
         :param code: 종목 코드
         :param dwm: 'm':분봉, 'T':틱봉
@@ -187,15 +180,13 @@ class CpStockChart:
         self.objStockChart.SetInputValue(0, code)  # 종목코드
         self.objStockChart.SetInputValue(1, ord('2'))  # 개수로 받기
         self.objStockChart.SetInputValue(4, count)  # 조회 개수
-        self.objStockChart.SetInputValue(5, [0, 1, 2, 3, 4, 5, 8, 9])  # 요청항목 - 날짜, 시간,시가,고가,저가,종가,거래량
-        #self.objStockChart.SetInputValue(5, [0, 1, 9])  # 요청항목 - 날짜, 시간,시가,고가,저가,종가,거래량
+        self.objStockChart.SetInputValue(5, [0, 1, 2, 3, 4, 5, 8, 9])  # 요청항목 - 날짜, 시간,시가,고가,저가,종가,거래량,거래대금
         self.objStockChart.SetInputValue(6, dwm)  # '차트 주기 - 분/틱
         self.objStockChart.SetInputValue(7, tick_range)  # 분틱차트 주기
-        self.objStockChart.SetInputValue(9, ord('0'))  # 수정주가 사용
+        self.objStockChart.SetInputValue(9, ord('1'))  # 무수정주가 사용
 
         # 요청한 항목들을 튜플로 만들어 사용
-        rq_column = ('date', 'time', 'open', 'high', 'low', 'close', 'volume','value')
-        #rq_column = ('date', 'time', 'value')
+        rq_column = ('logDate', 'logTime', 'priceOpen', 'priceHigh', 'priceLow', 'priceClose', 'volume', 'amount')
 
         rcv_data = {}
         for col in rq_column:
@@ -213,12 +204,12 @@ class CpStockChart:
                 for col_idx, col in enumerate(rq_column):
                     rcv_data[col].append(self.objStockChart.GetDataValue(col_idx, i))
 
-            if len(rcv_data['date']) == 0:  # 데이터가 없는 경우
+            if len(rcv_data['logDate']) == 0:  # 데이터가 없는 경우
                 print(code, '데이터 없음')
                 return False
 
             # len 만큼 받은 데이터의 가장 오래된 date
-            rcv_oldest_date = int('{}{:04}'.format(rcv_data['date'][-1], rcv_data['time'][-1]))
+            rcv_oldest_date = int('{}{:04}'.format(rcv_data['logDate'][-1], rcv_data['logTime'][-1]))
 
             rcv_count += rcv_batch_len
             caller.return_status_msg = '{} / {}(maximum)'.format(rcv_count, count)
@@ -229,13 +220,11 @@ class CpStockChart:
             # while 조건문에서 count > rcv_count를 체크해줘야 함.
             if not self.objStockChart.Continue:
                 break
-            if rcv_oldest_date < from_date:
-                break
 
         # 분봉의 경우 날짜와 시간을 하나의 문자열로 합친 후 int로 변환
-        rcv_data['date'] = list(map(lambda x, y: int('{}{:04}'.format(x, y)),
-                 rcv_data['date'], rcv_data['time']))
-        del rcv_data['time']
+        rcv_data['logDate'] = list(map(lambda x, y: int('{}{:04}'.format(x, y)),
+                 rcv_data['logDate'], rcv_data['logTime']))
+        del rcv_data['logTime']
         caller.rcv_data = rcv_data  # 받은 데이터를 caller의 멤버에 저장
         return True
 

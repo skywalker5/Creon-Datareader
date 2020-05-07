@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\jin\Documents\Repo\Trading\Creon-Datareader\creon_datareader_v1_1.ui'
+# Form implementation generated from reading ui file 'creon_datareader_v1_1.ui'
 #
 # Created by: PyQt5 UI code generator 5.9.2
 #
@@ -21,13 +21,13 @@ class Ui_MainWindow(object):
         self.groupBox_4.setFlat(False)
         self.groupBox_4.setObjectName("groupBox_4")
         self.groupBox_2 = QtWidgets.QGroupBox(self.groupBox_4)
-        self.groupBox_2.setGeometry(QtCore.QRect(10, 270, 361, 531))
+        self.groupBox_2.setGeometry(QtCore.QRect(10, 160, 361, 641))
         self.groupBox_2.setObjectName("groupBox_2")
         self.tableView = QtWidgets.QTableView(self.groupBox_2)
         self.tableView.setGeometry(QtCore.QRect(10, 30, 341, 601))
         self.tableView.setObjectName("tableView")
         self.groupBox_3 = QtWidgets.QGroupBox(self.groupBox_4)
-        self.groupBox_3.setGeometry(QtCore.QRect(380, 270, 431, 531))
+        self.groupBox_3.setGeometry(QtCore.QRect(380, 160, 431, 641))
         self.groupBox_3.setObjectName("groupBox_3")
         self.tableView_2 = QtWidgets.QTableView(self.groupBox_3)
         self.tableView_2.setGeometry(QtCore.QRect(10, 30, 411, 601))
@@ -56,7 +56,7 @@ class Ui_MainWindow(object):
         self.lineEdit_4.setGeometry(QtCore.QRect(130, 30, 291, 21))
         self.lineEdit_4.setObjectName("lineEdit_4")
         self.lineEdit_5 = QtWidgets.QLineEdit(self.groupBox_4)
-        self.lineEdit_5.setGeometry(QtCore.QRect(120, 216, 181, 31))
+        self.lineEdit_5.setGeometry(QtCore.QRect(120, 120, 181, 31))
         font = QtGui.QFont()
         font.setFamily("굴림")
         font.setPointSize(12)
@@ -66,7 +66,7 @@ class Ui_MainWindow(object):
         self.lineEdit_5.setText("")
         self.lineEdit_5.setObjectName("lineEdit_5")
         self.label_12 = QtWidgets.QLabel(self.groupBox_4)
-        self.label_12.setGeometry(QtCore.QRect(20, 220, 91, 21))
+        self.label_12.setGeometry(QtCore.QRect(20, 124, 91, 21))
         font = QtGui.QFont()
         font.setFamily("굴림")
         font.setPointSize(12)
