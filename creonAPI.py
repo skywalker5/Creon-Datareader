@@ -183,7 +183,7 @@ class CpStockChart:
         self.objStockChart.SetInputValue(5, [0, 1, 2, 3, 4, 5, 8, 9])  # 요청항목 - 날짜, 시간,시가,고가,저가,종가,거래량,거래대금
         self.objStockChart.SetInputValue(6, dwm)  # '차트 주기 - 분/틱
         self.objStockChart.SetInputValue(7, tick_range)  # 분틱차트 주기
-        self.objStockChart.SetInputValue(9, ord('1'))  # 무수정주가 사용
+        self.objStockChart.SetInputValue(9, ord('0'))  # 무수정주가 사용
 
         # 요청한 항목들을 튜플로 만들어 사용
         rq_column = ('logDate', 'logTime', 'priceOpen', 'priceHigh', 'priceLow', 'priceClose', 'volume', 'amount')
@@ -216,7 +216,7 @@ class CpStockChart:
 
             # 서버가 가진 모든 데이터를 요청한 경우 break.
             # self.objStockChart.Continue 는 개수로 요청한 경우
-            # count만큼 이미 다 받았더라도 계속 1의 값을 가지고 있어서
+            # count만큼 이미 다 받았더라도 계속 11의 값을 가지고 있어서
             # while 조건문에서 count > rcv_count를 체크해줘야 함.
             if not self.objStockChart.Continue:
                 break
