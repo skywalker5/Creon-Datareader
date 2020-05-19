@@ -143,6 +143,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif self.radioButton_4.isChecked(): # 30분봉
             tick_unit = '분봉'
             tick_range = 30
+        elif self.radioButton_5.isChecked(): # 15분봉
+            tick_unit = '분봉'
+            tick_range = 15
         else: # 일봉
             tick_unit = '일봉'
             tick_range = 1
