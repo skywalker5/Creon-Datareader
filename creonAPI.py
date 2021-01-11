@@ -2,7 +2,22 @@
 import win32com.client
 import time
 
-
+index_list = ['U001','U201',
+              'U002', 'U003', 'U004','U005',
+              'U006', 'U007', 'U008','U009',
+              'U010', 'U011', 'U012','U013',
+              'U014', 'U015', 'U016','U017',
+              'U018', 'U019', 'U020','U021',
+              'U022', 'U024','U025',
+              'U026', 'U027',
+              'U212', 'U226', 'U227',
+              'U229', 'U231', 'U237',
+              'U256', 'U258', 'U262', 'U263',
+              'U265', 'U266', 'U267', 'U268',
+              'U270', 'U272', 'U274', 'U275',
+              'U277', 'U351', 'U352', 'U353',
+              'U354', 'U355', 'U356', 'U357',
+              'U358', 'U359', 'U360']
 g_objCpStatus = win32com.client.Dispatch('CpUtil.CpCybos')
 
 
@@ -56,6 +71,63 @@ class CpStockChart:
 
     # 차트 요청 - 최근일 부터 개수 기준
     @check_PLUS_status
+    def RequestRate(self, code, dwm, count, caller: 'MainWindow'):
+        """
+        :param code: 종목코드
+        :param dwm: 'D':일봉, 'W':주봉, 'M':월봉
+        :param count: 요청할 데이터 개수
+        :param caller: 이 메소드 호출한 인스턴스. 결과 데이터를 caller의 멤버로 전달하기 위함
+        :return: None
+        """
+        if code in index_list:
+            return False
+        # cybosplushelp StockChart 참조
+        self.objStockChart.SetInputValue(0, code)  # 종목코드
+        self.objStockChart.SetInputValue(1, ord('2'))  # 개수로 받기
+        self.objStockChart.SetInputValue(4, count)  # 최근 count개
+        self.objStockChart.SetInputValue(5, [0, 19])
+        # 요청항목 - 날짜,수정주가비율
+        self.objStockChart.SetInputValue(6, dwm)  # '차트 주기 - 일/주/월
+        self.objStockChart.SetInputValue(9, ord('0'))  # 무수정주가 사용
+
+        # 요청한 항목들을 튜플로 만들어 사용
+        rq_column = ('logDate', 'adjRate')
+
+        rcv_data = {}
+        for col in rq_column:
+            rcv_data[col] = []
+
+        rcv_count = 0
+        while count > rcv_count:
+            self.objStockChart.BlockRequest()  # 요청! 후 응답 대기
+            self._check_rq_status()  # 통신상태 검사
+            time.sleep(0.25)  # 시간당 RQ 제한으로 인해 장애가 발생하지 않도록 딜레이를 줌
+
+            rcv_batch_len = self.objStockChart.GetHeaderValue(3)  # 받아온 데이터 개수
+            rcv_batch_len = min(rcv_batch_len, count - rcv_count)  # 정확히 count 개수만큼 받기 위함
+            for i in range(rcv_batch_len):
+                for col_idx, col in enumerate(rq_column):
+                    rcv_data[col].append(self.objStockChart.GetDataValue(col_idx, i))
+
+            if len(rcv_data['logDate']) == 0:  # 데이터가 없는 경우
+                print(code, '데이터 없음')
+                return False
+
+            rcv_count += rcv_batch_len
+            caller.return_status_msg = '{} / {}'.format(rcv_count, count)
+
+            # 서버가 가진 모든 데이터를 요청한 경우 break.
+            # self.objStockChart.Continue 는 개수로 요청한 경우
+            # count만큼 이미 다 받았더라도 계속 1의 값을 가지고 있어서
+            # while 조건문에서 count > rcv_count를 체크해줘야 함.
+            if not self.objStockChart.Continue:
+                break
+
+        caller.rcv_data = rcv_data  # 받은 데이터를 caller의 멤버에 저장
+        return True
+
+    # 차트 요청 - 최근일 부터 개수 기준
+    @check_PLUS_status
     def RequestDWM(self, code, dwm, count, caller: 'MainWindow'):
         """
         :param code: 종목코드
@@ -69,16 +141,16 @@ class CpStockChart:
         #print(code)
         self.objStockChart.SetInputValue(1, ord('2'))  # 개수로 받기
         self.objStockChart.SetInputValue(4, count)  # 최근 count개
-        if (code =='U001' or code =='U201'):
-            self.objStockChart.SetInputValue(5, [0, 2, 3, 4, 5, 8])  # 요청항목 - 날짜,시가,고가,저가,종가,거래량
+        if code in index_list:
+            self.objStockChart.SetInputValue(5, [0, 2, 3, 4, 5, 8, 9])  # 요청항목 - 날짜,시가,고가,저가,종가,거래량
         else:
             self.objStockChart.SetInputValue(5, [0, 2, 3, 4, 5, 8, 9, 12, 13, 17, 19])  # 요청항목 - 날짜,시가,고가,저가,종가,거래량,거래대금,상장주식수,시가총액,외국인보유비율,수정주가일자,수정주가비율,주식회전율
         self.objStockChart.SetInputValue(6, dwm)  # '차트 주기 - 일/주/월
         self.objStockChart.SetInputValue(9, ord('0'))  # 무수정주가 사용
 
         # 요청한 항목들을 튜플로 만들어 사용
-        if (code =='U001' or code =='U201'):
-            rq_column = ('logDate', 'priceOpen', 'priceHigh', 'priceLow', 'priceClose', 'volume')
+        if code in index_list:
+            rq_column = ('logDate', 'priceOpen', 'priceHigh', 'priceLow', 'priceClose', 'volume','amount')
         else:
             rq_column = ('logDate', 'priceOpen', 'priceHigh', 'priceLow', 'priceClose', 'volume', 'amount', 'numListed','marketCap', 'foreignRate','adjRate')
 
@@ -115,7 +187,7 @@ class CpStockChart:
             if not self.objStockChart.Continue:
                 break
 
-        if dwm == ord('D') and not (code =='U001' or code =='U201'):
+        if dwm == ord('D') and not code in index_list:
 
             self.objSvr7254.SetInputValue(0, code)  # 종목코드
             self.objSvr7254.SetInputValue(1, 6)  # 일별

@@ -16,9 +16,10 @@ import decorators
 from pandas_to_pyqt_table import PandasModel
 #from creon_datareader_v1_1_ui import Ui_MainWindow
 from utils import is_market_open, available_latest_date, preformat_cjk
-
+from creonAPI import *
 # .ui 파일에서 직접 클래스 생성하는 경우 주석 해제
 Ui_MainWindow = uic.loadUiType("creon_datareader_v1_1.ui")[0]
+
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -70,7 +71,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 서버 종목 정보 가져와서 dataframe으로 저장
         self.start_range = int(self.lineEdit_10.text())
         self.end_range = int(self.lineEdit_11.text())
-        sv_code_list = self.objCodeMgr.get_code_list(1) + self.objCodeMgr.get_code_list(2) + ('U001','U201')
+        sv_code_list = self.objCodeMgr.get_code_list(1) + self.objCodeMgr.get_code_list(2) + tuple(index_list)
         codes_len = len(sv_code_list)
         sv_code_list = sv_code_list[self.start_range:self.end_range]
         sv_name_list = list(map(self.objCodeMgr.get_code_name, sv_code_list))
@@ -146,6 +147,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif self.radioButton_5.isChecked(): # 15분봉
             tick_unit = '분봉'
             tick_range = 15
+        elif self.radioButton_6.isChecked(): # 15분봉
+            tick_unit = '수정비율'
+            tick_range = 1
         else: # 일봉
             tick_unit = '일봉'
             tick_range = 1
@@ -161,13 +165,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 if tick_unit == '일봉':  # 일봉 데이터 받기
                     if self.objStockChart.RequestDWM(code[0], ord('D'), count, self) == False:
                         continue
+                elif tick_unit == '수정비율':  # 일봉 데이터 받기
+                    if self.objStockChart.RequestRate(code[0], ord('D'), count, self) == False:
+                        continue
                 elif tick_unit == '분봉':  # 분봉 데이터 받기
                     if self.objStockChart.RequestMT(code[0], ord('m'), tick_range, count, self) == False:
                         continue
 
                 if tick_unit == '일봉':
-                    if (code[0] == 'U001' or code[0] == 'U201'):
-                        df = pd.DataFrame(self.rcv_data, columns=['priceOpen', 'priceHigh', 'priceLow', 'priceClose', 'volume'],
+                    if code[0] in index_list:
+                        df = pd.DataFrame(self.rcv_data, columns=['priceOpen', 'priceHigh', 'priceLow', 'priceClose', 'volume', 'amount'],
                                   index=self.rcv_data['logDate'])
                     else:
                         df = pd.DataFrame(self.rcv_data,
@@ -177,8 +184,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                                             'gitaFinanceNetbuy', 'pensionNetbuy', 'gitaInstNetbuy', 'gitaForeignNetbuy', 'samoNetbuy',
                                             'nationNetbuy'], index=self.supply_data['logDate'])
                         df = df.join(df2)
+                elif tick_unit == '수정비율':
+                    df = pd.DataFrame(self.rcv_data,
+                                          columns=['adjRate'],
+                                          index=self.rcv_data['logDate'])
                 else:
-                	df = pd.DataFrame(self.rcv_data, columns=['priceOpen', 'priceHigh', 'priceLow', 'priceClose', 'volume', 'amount'],
+                    df = pd.DataFrame(self.rcv_data, columns=['priceOpen', 'priceHigh', 'priceLow', 'priceClose', 'volume', 'amount'],
                                   index=self.rcv_data['logDate'])
 
                 # 뒤집어서 저장 (결과적으로 date 기준 오름차순으로 저장됨)
@@ -188,7 +199,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
                 # 메모리 overflow 방지
                 del df
-                if tick_unit == '일봉' and not (code[0] =='U001' or code[0] =='U201'):
+                if tick_unit == '일봉' and not code[0] in index_list:
                     del df2
                 gc.collect()
 
